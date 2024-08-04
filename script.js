@@ -16,6 +16,7 @@ let pacMan = {
 
 let pellets = [];
 let powerPellets = [];
+let fruits = [];
 let score = 0;
 let level = 1;
 let powerMode = false;
@@ -73,6 +74,15 @@ function drawPowerPellets() {
     });
 }
 
+function drawFruits() {
+    context.fillStyle = 'red';
+    fruits.forEach(fruit => {
+        context.beginPath();
+        context.arc(fruit.x + tileSize / 2, fruit.y + tileSize / 2, 6, 0, 2 * Math.PI);
+        context.fill();
+    });
+}
+
 function drawGhosts() {
     ghosts.forEach(ghost => {
         context.fillStyle = ghost.isScared ? 'blue' : ghost.color;
@@ -112,6 +122,15 @@ function update() {
             powerMode = true;
             powerModeTime = 100;
             ghosts.forEach(ghost => ghost.isScared = true);
+        }
+        return eaten;
+    });
+
+    // Check for fruit collision
+    fruits = fruits.filter(fruit => {
+        const eaten = !(fruit.x === pacMan.x && fruit.y === pacMan.y);
+        if (!eaten) {
+            score += 50;
         }
         return eaten;
     });
@@ -193,12 +212,20 @@ function levelUp() {
         ghost.speed -= 20;
     });
     initializePellets();
+    spawnFruit();
+}
+
+function spawnFruit() {
+    const fruitX = Math.floor(Math.random() * cols) * tileSize;
+    const fruitY = Math.floor(Math.random() * rows) * tileSize;
+    fruits.push({ x: fruitX, y: fruitY });
 }
 
 function gameLoop() {
     clearCanvas();
     drawPellets();
     drawPowerPellets();
+    drawFruits();
     drawPacMan();
     drawGhosts();
     drawScore();
