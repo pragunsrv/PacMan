@@ -14,20 +14,27 @@ let pacMan = {
 };
 
 let pellets = [];
+let powerPellets = [];
 let score = 0;
+let powerMode = false;
+let powerModeTime = 0;
 
-// Initialize pellets
+// Initialize pellets and power pellets
 for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
-        pellets.push({ x: col * tileSize, y: row * tileSize });
+        if ((row === 5 && col === 5) || (row === 5 && col === 15) || (row === 15 && col === 5) || (row === 15 && col === 15)) {
+            powerPellets.push({ x: col * tileSize, y: row * tileSize });
+        } else {
+            pellets.push({ x: col * tileSize, y: row * tileSize });
+        }
     }
 }
 
 let ghosts = [
-    { x: tileSize * 10, y: tileSize * 10, dx: tileSize, dy: 0, color: 'red' },
-    { x: tileSize * 15, y: tileSize * 10, dx: tileSize, dy: 0, color: 'pink' },
-    { x: tileSize * 10, y: tileSize * 15, dx: tileSize, dy: 0, color: 'cyan' },
-    { x: tileSize * 15, y: tileSize * 15, dx: tileSize, dy: 0, color: 'orange' }
+    { x: tileSize * 10, y: tileSize * 10, dx: tileSize, dy: 0, color: 'red', isScared: false },
+    { x: tileSize * 15, y: tileSize * 10, dx: tileSize, dy: 0, color: 'pink', isScared: false },
+    { x: tileSize * 10, y: tileSize * 15, dx: tileSize, dy: 0, color: 'cyan', isScared: false },
+    { x: tileSize * 15, y: tileSize * 15, dx: tileSize, dy: 0, color: 'orange', isScared: false }
 ];
 
 function drawPacMan() {
@@ -47,9 +54,18 @@ function drawPellets() {
     });
 }
 
+function drawPowerPellets() {
+    context.fillStyle = 'blue';
+    powerPellets.forEach(pellet => {
+        context.beginPath();
+        context.arc(pellet.x + tileSize / 2, pellet.y + tileSize / 2, 6, 0, 2 * Math.PI);
+        context.fill();
+    });
+}
+
 function drawGhosts() {
     ghosts.forEach(ghost => {
-        context.fillStyle = ghost.color;
+        context.fillStyle = ghost.isScared ? 'blue' : ghost.color;
         context.beginPath();
         context.arc(ghost.x + tileSize / 2, ghost.y + tileSize / 2, pacMan.size / 2, 0, 2 * Math.PI);
         context.fill();
@@ -79,6 +95,25 @@ function update() {
         return eaten;
     });
 
+    // Check for power pellet collision
+    powerPellets = powerPellets.filter(pellet => {
+        const eaten = !(pellet.x === pacMan.x && pellet.y === pacMan.y);
+        if (!eaten) {
+            powerMode = true;
+            powerModeTime = 100;
+            ghosts.forEach(ghost => ghost.isScared = true);
+        }
+        return eaten;
+    });
+
+    if (powerMode) {
+        powerModeTime--;
+        if (powerModeTime <= 0) {
+            powerMode = false;
+            ghosts.forEach(ghost => ghost.isScared = false);
+        }
+    }
+
     // Move ghosts
     ghosts.forEach(ghost => {
         ghost.x += ghost.dx;
@@ -104,7 +139,14 @@ function update() {
 
         // Check for collision with Pac-Man
         if (ghost.x === pacMan.x && ghost.y === pacMan.y) {
-            resetGame();
+            if (ghost.isScared) {
+                ghost.x = tileSize * 10;
+                ghost.y = tileSize * 10;
+                ghost.isScared = false;
+                score += 10;
+            } else {
+                resetGame();
+            }
         }
     });
 }
@@ -122,16 +164,27 @@ function resetGame() {
     pacMan.dy = 0;
     score = 0;
     pellets = [];
+    powerPellets = [];
     for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
-            pellets.push({ x: col * tileSize, y: row * tileSize });
+            if ((row === 5 && col === 5) || (row === 5 && col === 15) || (row === 15 && col === 5) || (row === 15 && col === 15)) {
+                powerPellets.push({ x: col * tileSize, y: row * tileSize });
+            } else {
+                pellets.push({ x: col * tileSize, y: row * tileSize });
+            }
         }
     }
+    ghosts.forEach(ghost => {
+        ghost.x = tileSize * 10;
+        ghost.y = tileSize * 10;
+        ghost.isScared = false;
+    });
 }
 
 function gameLoop() {
     clearCanvas();
     drawPellets();
+    drawPowerPellets();
     drawPacMan();
     drawGhosts();
     drawScore();
