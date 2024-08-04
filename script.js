@@ -17,13 +17,14 @@ let pacMan = {
 let pellets = [];
 let powerPellets = [];
 let fruits = [];
+let ghosts = [];
 let score = 0;
 let level = 1;
 let powerMode = false;
 let powerModeTime = 0;
 let multiplier = 1;
-
-const ghostBaseSpeed = 200;
+let lives = 3;
+let gamePaused = false;
 
 function initializePellets() {
     pellets = [];
@@ -39,14 +40,17 @@ function initializePellets() {
     }
 }
 
-let ghosts = [
-    { x: tileSize * 10, y: tileSize * 10, dx: tileSize, dy: 0, color: 'red', isScared: false, speed: ghostBaseSpeed, behavior: 'random' },
-    { x: tileSize * 15, y: tileSize * 10, dx: tileSize, dy: 0, color: 'pink', isScared: false, speed: ghostBaseSpeed, behavior: 'chase' },
-    { x: tileSize * 10, y: tileSize * 15, dx: tileSize, dy: 0, color: 'cyan', isScared: false, speed: ghostBaseSpeed, behavior: 'scatter' },
-    { x: tileSize * 15, y: tileSize * 15, dx: tileSize, dy: 0, color: 'orange', isScared: false, speed: ghostBaseSpeed, behavior: 'random' }
-];
+function initializeGhosts() {
+    ghosts = [
+        { x: tileSize * 10, y: tileSize * 10, dx: tileSize, dy: 0, color: 'red', isScared: false, speed: 200, behavior: 'random' },
+        { x: tileSize * 15, y: tileSize * 10, dx: tileSize, dy: 0, color: 'pink', isScared: false, speed: 200, behavior: 'chase' },
+        { x: tileSize * 10, y: tileSize * 15, dx: tileSize, dy: 0, color: 'cyan', isScared: false, speed: 200, behavior: 'scatter' },
+        { x: tileSize * 15, y: tileSize * 15, dx: tileSize, dy: 0, color: 'orange', isScared: false, speed: 200, behavior: 'random' }
+    ];
+}
 
 initializePellets();
+initializeGhosts();
 
 function drawPacMan() {
     context.fillStyle = 'yellow';
@@ -92,12 +96,28 @@ function drawGhosts() {
     });
 }
 
+function drawUI() {
+    context.fillStyle = 'white';
+    context.font = '20px Arial';
+    context.fillText('Score: ' + score, 10, 20);
+    context.fillText('Level: ' + level, 10, 40);
+    context.fillText('Lives: ' + lives, 10, 60);
+    context.fillText('Multiplier: x' + multiplier, 10, 80);
+    if (powerMode) {
+        context.fillStyle = 'white';
+        context.font = '16px Arial';
+        context.fillText('Power Mode: ' + powerModeTime, 10, 100);
+    }
+}
+
 function clearCanvas() {
     context.fillStyle = 'black';
     context.fillRect(0, 0, canvas.width, canvas.height);
 }
 
 function update() {
+    if (gamePaused) return;
+
     pacMan.x += pacMan.dx;
     pacMan.y += pacMan.dy;
 
@@ -122,7 +142,7 @@ function update() {
             powerMode = true;
             powerModeTime = 100;
             ghosts.forEach(ghost => ghost.isScared = true);
-            multiplier = 2; // Double score during power mode
+            multiplier = 2;
         }
         return eaten;
     });
@@ -141,7 +161,7 @@ function update() {
         if (powerModeTime <= 0) {
             powerMode = false;
             ghosts.forEach(ghost => ghost.isScared = false);
-            multiplier = 1; // Reset multiplier after power mode
+            multiplier = 1;
         }
     }
 
@@ -187,22 +207,24 @@ function update() {
                 ghost.isScared = false;
                 score += 10 * multiplier;
             } else {
-                gameOver();
+                loseLife();
             }
         }
     });
 
+    // Check for win condition
     if (pellets.length === 0 && powerPellets.length === 0) {
         levelUp();
     }
 }
 
-function drawScore() {
-    context.fillStyle = 'white';
-    context.font = '20px Arial';
-    context.fillText('Score: ' + score, 10, 20);
-    context.fillText('Level: ' + level, 10, 40);
-    context.fillText('Multiplier: x' + multiplier, 10, 60);
+function loseLife() {
+    lives--;
+    if (lives <= 0) {
+        gameOver();
+    } else {
+        resetGame();
+    }
 }
 
 function resetGame() {
@@ -210,18 +232,11 @@ function resetGame() {
     pacMan.y = tileSize * 1;
     pacMan.dx = tileSize;
     pacMan.dy = 0;
-    score = 0;
-    level = 1;
     powerMode = false;
     powerModeTime = 0;
     multiplier = 1;
-    ghosts.forEach(ghost => {
-        ghost.x = tileSize * (Math.random() * (cols - 2) + 1);
-        ghost.y = tileSize * (Math.random() * (rows - 2) + 1);
-        ghost.isScared = false;
-        ghost.speed = ghostBaseSpeed;
-    });
     initializePellets();
+    initializeGhosts();
     fruits = [{ x: tileSize * 7, y: tileSize * 7 }];
 }
 
@@ -240,6 +255,7 @@ function gameOver() {
     context.fillText('Game Over', canvas.width / 2 - 100, canvas.height / 2 - 20);
     context.font = '20px Arial';
     context.fillText('Score: ' + score, canvas.width / 2 - 50, canvas.height / 2 + 20);
+    context.fillText('Lives: ' + lives, canvas.width / 2 - 50, canvas.height / 2 + 50);
     setTimeout(() => {
         if (confirm('Game Over! Do you want to play again?')) {
             resetGame();
@@ -256,7 +272,7 @@ function gameTick() {
     drawFruits();
     drawPacMan();
     drawGhosts();
-    drawScore();
+    drawUI();
 }
 
 document.addEventListener('keydown', (e) => {
@@ -275,6 +291,14 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowRight') {
         pacMan.dx = tileSize;
         pacMan.dy = 0;
+    }
+    if (e.key === 'p') {
+        gamePaused = !gamePaused;
+        if (!gamePaused) {
+            gameLoop = setInterval(gameTick, pacMan.speed);
+        } else {
+            clearInterval(gameLoop);
+        }
     }
 });
 
