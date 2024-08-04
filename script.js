@@ -21,6 +21,8 @@ let ghosts = [];
 let movingWalls = [];
 let destroyableWalls = [];
 let powerUps = [];
+let traps = [];
+let obstacles = [];
 let score = 0;
 let level = 1;
 let powerMode = false;
@@ -74,7 +76,23 @@ function initializeDestroyableWalls() {
 function initializePowerUps() {
     powerUps = [
         { x: tileSize * 8, y: tileSize * 8, type: 'speed', duration: 10 },
-        { x: tileSize * 12, y: tileSize * 12, type: 'invincibility', duration: 10 }
+        { x: tileSize * 12, y: tileSize * 12, type: 'invincibility', duration: 10 },
+        { x: tileSize * 4, y: tileSize * 4, type: 'scoreBoost', duration: 10 },
+        { x: tileSize * 16, y: tileSize * 16, type: 'ghostFreeze', duration: 10 }
+    ];
+}
+
+function initializeTraps() {
+    traps = [
+        { x: tileSize * 9, y: tileSize * 9, width: tileSize, height: tileSize, effect: 'slow' },
+        { x: tileSize * 13, y: tileSize * 13, width: tileSize, height: tileSize, effect: 'damage' }
+    ];
+}
+
+function initializeObstacles() {
+    obstacles = [
+        { x: tileSize * 6, y: tileSize * 6, width: tileSize * 2, height: tileSize },
+        { x: tileSize * 12, y: tileSize * 12, width: tileSize * 3, height: tileSize }
     ];
 }
 
@@ -84,6 +102,8 @@ function initializeLevel() {
     initializeMovingWalls();
     initializeDestroyableWalls();
     initializePowerUps();
+    initializeTraps();
+    initializeObstacles();
     fruits = [{ x: tileSize * 7, y: tileSize * 7 }];
 }
 
@@ -158,6 +178,12 @@ function drawPowerUps() {
             case 'invincibility':
                 context.fillStyle = 'purple';
                 break;
+            case 'scoreBoost':
+                context.fillStyle = 'orange';
+                break;
+            case 'ghostFreeze':
+                context.fillStyle = 'cyan';
+                break;
         }
         context.beginPath();
         context.arc(powerUp.x + tileSize / 2, powerUp.y + tileSize / 2, 6, 0, 2 * Math.PI);
@@ -165,36 +191,31 @@ function drawPowerUps() {
     });
 }
 
+function drawTraps() {
+    context.fillStyle = 'red';
+    traps.forEach(trap => {
+        context.fillRect(trap.x, trap.y, trap.width, trap.height);
+    });
+}
+
+function drawObstacles() {
+    context.fillStyle = 'grey';
+    obstacles.forEach(obstacle => {
+        context.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+    });
+}
+
 function drawUI() {
     context.fillStyle = 'white';
     context.font = '20px Arial';
     context.fillText('Score: ' + score, 10, 20);
-    context.fillText('Level: ' + level, 10, 40);
-    context.fillText('Lives: ' + lives, 10, 60);
-    context.fillText('Multiplier: x' + multiplier, 10, 80);
-    context.fillText('Best Score: ' + bestScore, canvas.width - 150, 20);
-    context.fillText('Average Score: ' + avgScore.toFixed(2), canvas.width - 150, 40);
-    context.fillText('Difficulty: ' + ['Easy', 'Medium', 'Hard'][difficulty - 1], canvas.width - 150, 60);
-    if (powerMode) {
-        context.fillStyle = 'white';
-        context.font = '16px Arial';
-        context.fillText('Power Mode: ' + powerModeTime, 10, 100);
-    }
-    drawLeaderboard();
-}
-
-function drawLeaderboard() {
-    context.fillStyle = 'white';
-    context.font = '16px Arial';
-    context.fillText('Leaderboard:', canvas.width - 150, 80);
-    leaderboard.slice(0, 5).forEach((entry, index) => {
-        context.fillText(`${index + 1}. ${entry.name}: ${entry.score}`, canvas.width - 150, 100 + index * 20);
-    });
-}
-
-function clearCanvas() {
-    context.fillStyle = 'black';
-    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillText('Lives: ' + lives, 10, 40);
+    context.fillText('Level: ' + level, 10, 60);
+    context.fillText('Power Mode: ' + (powerMode ? 'On' : 'Off'), 10, 80);
+    context.fillText('Difficulty: ' + ['Easy', 'Medium', 'Hard'][difficulty - 1], 10, 100);
+    context.fillText('Average Score: ' + Math.round(avgScore), 10, 120);
+    context.fillText('Best Score: ' + bestScore, 10, 140);
+    context.fillText('Total Games: ' + totalGames, 10, 160);
 }
 
 function update() {
@@ -256,8 +277,38 @@ function update() {
                     powerMode = true;
                     powerModeTime = 20;
                     break;
+                case 'scoreBoost':
+                    multiplier = 3;
+                    break;
+                case 'ghostFreeze':
+                    ghosts.forEach(ghost => ghost.speed = 0);
+                    setTimeout(() => ghosts.forEach(ghost => ghost.speed = 200), 10000);
+                    break;
             }
             powerUps = powerUps.filter(p => p !== powerUp);
+        }
+    });
+
+    traps.forEach(trap => {
+        if (pacMan.x < trap.x + trap.width &&
+            pacMan.x + tileSize > trap.x &&
+            pacMan.y < trap.y + trap.height &&
+            pacMan.y + tileSize > trap.y) {
+            if (trap.effect === 'slow') {
+                pacMan.speed = 400;
+            } else if (trap.effect === 'damage') {
+                loseLife();
+            }
+        }
+    });
+
+    obstacles.forEach(obstacle => {
+        if (pacMan.x < obstacle.x + obstacle.width &&
+            pacMan.x + tileSize > obstacle.x &&
+            pacMan.y < obstacle.y + obstacle.height &&
+            pacMan.y + tileSize > obstacle.y) {
+            pacMan.x -= pacMan.dx;
+            pacMan.y -= pacMan.dy;
         }
     });
 
@@ -410,39 +461,32 @@ function gameTick() {
     drawMovingWalls();
     drawDestroyableWalls();
     drawPowerUps();
+    drawTraps();
+    drawObstacles();
     drawUI();
 }
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowUp') {
         pacMan.dx = 0;
-        pacMan.dy = -tileSize;
-    }
-    if (e.key === 'ArrowDown') {
+        pacMan.dy = -pacMan.speed;
+    } else if (e.key === 'ArrowDown') {
         pacMan.dx = 0;
-        pacMan.dy = tileSize;
-    }
-    if (e.key === 'ArrowLeft') {
-        pacMan.dx = -tileSize;
+        pacMan.dy = pacMan.speed;
+    } else if (e.key === 'ArrowLeft') {
+        pacMan.dx = -pacMan.speed;
         pacMan.dy = 0;
-    }
-    if (e.key === 'ArrowRight') {
-        pacMan.dx = tileSize;
+    } else if (e.key === 'ArrowRight') {
+        pacMan.dx = pacMan.speed;
         pacMan.dy = 0;
-    }
-    if (e.key === 'p') {
+    } else if (e.key === 'p') {
         gamePaused = !gamePaused;
-        if (!gamePaused) {
-            gameLoop = setInterval(gameTick, pacMan.speed);
-        } else {
-            clearInterval(gameLoop);
-        }
-    }
-    if (e.key === 'd') {
-        difficulty = (difficulty % 3) + 1;
-        alert(`Difficulty set to ${['Easy', 'Medium', 'Hard'][difficulty - 1]}`);
+        if (!gamePaused) gameLoop = setInterval(gameTick, pacMan.speed);
+        else clearInterval(gameLoop);
+    } else if (e.key === 'r') {
+        resetGame();
     }
 });
 
-resetGame();
-let gameLoop = setInterval(gameTick, pacMan.speed);
+initializeLevel();
+gameLoop = setInterval(gameTick, pacMan.speed);
