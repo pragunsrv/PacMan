@@ -79,6 +79,34 @@ function update() {
         return eaten;
     });
 
+    // Move ghosts
+    ghosts.forEach(ghost => {
+        ghost.x += ghost.dx;
+        ghost.y += ghost.dy;
+
+        // Randomly change direction
+        if (Math.random() < 0.1) {
+            const directions = [
+                { dx: tileSize, dy: 0 },
+                { dx: -tileSize, dy: 0 },
+                { dx: 0, dy: tileSize },
+                { dx: 0, dy: -tileSize }
+            ];
+            const direction = directions[Math.floor(Math.random() * directions.length)];
+            ghost.dx = direction.dx;
+            ghost.dy = direction.dy;
+        }
+
+        if (ghost.x >= canvas.width) ghost.x = 0;
+        if (ghost.x < 0) ghost.x = canvas.width - tileSize;
+        if (ghost.y >= canvas.height) ghost.y = 0;
+        if (ghost.y < 0) ghost.y = canvas.height - tileSize;
+
+        // Check for collision with Pac-Man
+        if (ghost.x === pacMan.x && ghost.y === pacMan.y) {
+            resetGame();
+        }
+    });
 }
 
 function drawScore() {
