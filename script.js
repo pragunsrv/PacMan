@@ -9,7 +9,8 @@ const pacMan = {
     dx: 0,
     dy: 0,
     speed: 200,
-    color: 'yellow'
+    color: 'yellow',
+    lives: 3
 };
 
 let pellets = [];
@@ -22,7 +23,6 @@ let destroyableWalls = [];
 let movingWalls = [];
 let ghosts = [];
 let score = 0;
-let lives = 3;
 let level = 1;
 let multiplier = 1;
 let powerMode = false;
@@ -31,6 +31,7 @@ let bestScore = 0;
 let avgScore = 0;
 let totalGames = 0;
 let gamePaused = false;
+let levelChangeCounter = 0;
 
 function initializeLevel() {
     pellets = [];
@@ -43,29 +44,28 @@ function initializeLevel() {
     movingWalls = [];
     ghosts = [];
     
-    // Example initialization, you can customize
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < level * 5; i++) {
         pellets.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height });
     }
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < level; i++) {
         powerPellets.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height });
     }
-    for (let i = 0; i < 1; i++) {
+    for (let i = 0; i < Math.ceil(level / 2); i++) {
         fruits.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height });
     }
-    for (let i = 0; i < 1; i++) {
+    for (let i = 0; i < Math.ceil(level / 3); i++) {
         powerUps.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, type: 'speed' });
     }
-    for (let i = 0; i < 1; i++) {
+    for (let i = 0; i < Math.ceil(level / 4); i++) {
         traps.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, width: tileSize, height: tileSize, effect: 'slow' });
     }
-    for (let i = 0; i < 1; i++) {
+    for (let i = 0; i < Math.ceil(level / 5); i++) {
         obstacles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, width: tileSize, height: tileSize });
     }
-    for (let i = 0; i < 1; i++) {
+    for (let i = 0; i < Math.ceil(level / 6); i++) {
         destroyableWalls.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, width: tileSize, height: tileSize, isDestroyed: false });
     }
-    for (let i = 0; i < 1; i++) {
+    for (let i = 0; i < Math.ceil(level / 7); i++) {
         movingWalls.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, width: tileSize, height: tileSize, direction: 'right', speed: 2 });
     }
     ghosts.push({ x: canvas.width / 2, y: canvas.height / 2, size: tileSize, color: 'red', speed: 2, behavior: 'chase' });
@@ -172,7 +172,7 @@ function drawUI() {
     context.fillStyle = 'white';
     context.font = '20px Arial';
     context.fillText('Score: ' + score, 10, 20);
-    context.fillText('Lives: ' + lives, 10, 40);
+    context.fillText('Lives: ' + pacMan.lives, 10, 40);
     context.fillText('Level: ' + level, 10, 60);
     context.fillText('Best Score: ' + bestScore, 10, 80);
     context.fillText('Average Score: ' + Math.round(avgScore), 10, 100);
@@ -202,6 +202,13 @@ function update() {
     if (powerMode && Date.now() - powerModeTime > 10000) {
         powerMode = false;
         ghosts.forEach(ghost => ghost.isScared = false);
+    }
+
+    levelChangeCounter++;
+    if (levelChangeCounter >= 1000) {
+        level++;
+        initializeLevel();
+        levelChangeCounter = 0;
     }
 }
 
@@ -271,8 +278,9 @@ function checkTrapCollision() {
             if (trap.effect === 'slow') {
                 pacMan.speed *= 2;
             } else if (trap.effect === 'damage') {
-                lives--;
+                pacMan.lives--;
             }
+            traps.splice(index, 1);  // Remove trap after collision
         }
     });
 }
@@ -313,14 +321,12 @@ function checkMovingWallCollision() {
 
 function updateGhosts() {
     ghosts.forEach(ghost => {
-        // Simple movement logic for ghosts
         if (ghost.behavior === 'chase') {
             if (pacMan.x < ghost.x) ghost.x -= ghost.speed;
             if (pacMan.x > ghost.x) ghost.x += ghost.speed;
             if (pacMan.y < ghost.y) ghost.y -= ghost.speed;
             if (pacMan.y > ghost.y) ghost.y += ghost.speed;
         }
-        // Collision detection with Pac-Man
         if (pacMan.x < ghost.x + ghost.size &&
             pacMan.x + pacMan.size > ghost.x &&
             pacMan.y < ghost.y + ghost.size &&
@@ -329,8 +335,8 @@ function updateGhosts() {
                 ghosts = ghosts.filter(g => g !== ghost);
                 score += 200 * multiplier;
             } else {
-                lives--;
-                if (lives <= 0) {
+                pacMan.lives--;
+                if (pacMan.lives <= 0) {
                     gameOver();
                 } else {
                     resetLevel();
@@ -388,4 +394,4 @@ document.addEventListener('keyup', function(e) {
 });
 
 initializeLevel();
-const gameLoop = setInterval(gameLoopFunction, pacMan.speed);
+const gameLoop = setInterval(gameLoopFunction, 1000 / 60);
