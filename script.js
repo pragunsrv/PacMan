@@ -13,12 +13,31 @@ let pacMan = {
     size: tileSize - 2
 };
 
+let pellets = [];
+let score = 0;
+
+// Initialize pellets
+for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+        pellets.push({ x: col * tileSize, y: row * tileSize });
+    }
+}
+
 function drawPacMan() {
     context.fillStyle = 'yellow';
     context.beginPath();
     context.arc(pacMan.x + pacMan.size / 2, pacMan.y + pacMan.size / 2, pacMan.size / 2, 0.2 * Math.PI, 1.8 * Math.PI);
     context.lineTo(pacMan.x + pacMan.size / 2, pacMan.y + pacMan.size / 2);
     context.fill();
+}
+
+function drawPellets() {
+    context.fillStyle = 'white';
+    pellets.forEach(pellet => {
+        context.beginPath();
+        context.arc(pellet.x + tileSize / 2, pellet.y + tileSize / 2, 3, 0, 2 * Math.PI);
+        context.fill();
+    });
 }
 
 function clearCanvas() {
@@ -34,11 +53,28 @@ function update() {
     if (pacMan.x < 0) pacMan.x = canvas.width - tileSize;
     if (pacMan.y >= canvas.height) pacMan.y = 0;
     if (pacMan.y < 0) pacMan.y = canvas.height - tileSize;
+
+    // Check for pellet collision
+    pellets = pellets.filter(pellet => {
+        const eaten = !(pellet.x === pacMan.x && pellet.y === pacMan.y);
+        if (!eaten) {
+            score++;
+        }
+        return eaten;
+    });
+}
+
+function drawScore() {
+    context.fillStyle = 'white';
+    context.font = '20px Arial';
+    context.fillText('Score: ' + score, 10, 20);
 }
 
 function gameLoop() {
     clearCanvas();
+    drawPellets();
     drawPacMan();
+    drawScore();
     update();
 }
 
