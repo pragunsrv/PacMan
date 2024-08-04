@@ -19,6 +19,8 @@ let powerPellets = [];
 let fruits = [];
 let ghosts = [];
 let movingWalls = [];
+let destroyableWalls = [];
+let powerUps = [];
 let score = 0;
 let level = 1;
 let powerMode = false;
@@ -30,6 +32,7 @@ let bestScore = 0;
 let avgScore = 0;
 let totalGames = 0;
 let leaderboard = [];
+let difficulty = 1; // Difficulty levels: 1 (Easy), 2 (Medium), 3 (Hard)
 
 function initializePellets() {
     pellets = [];
@@ -47,10 +50,10 @@ function initializePellets() {
 
 function initializeGhosts() {
     ghosts = [
-        { x: tileSize * 10, y: tileSize * 10, dx: tileSize, dy: 0, color: 'red', isScared: false, speed: 200, behavior: 'random', specialAbility: 'teleport' },
-        { x: tileSize * 15, y: tileSize * 10, dx: tileSize, dy: 0, color: 'pink', isScared: false, speed: 200, behavior: 'chase', specialAbility: 'speed' },
-        { x: tileSize * 10, y: tileSize * 15, dx: tileSize, dy: 0, color: 'cyan', isScared: false, speed: 200, behavior: 'scatter', specialAbility: 'wall' },
-        { x: tileSize * 15, y: tileSize * 15, dx: tileSize, dy: 0, color: 'orange', isScared: false, speed: 200, behavior: 'random', specialAbility: 'speed' }
+        { x: tileSize * 10, y: tileSize * 10, dx: tileSize, dy: 0, color: 'red', isScared: false, speed: 200, behavior: 'random', specialAbility: 'teleport', difficulty: 'easy' },
+        { x: tileSize * 15, y: tileSize * 10, dx: tileSize, dy: 0, color: 'pink', isScared: false, speed: 200, behavior: 'chase', specialAbility: 'speed', difficulty: 'medium' },
+        { x: tileSize * 10, y: tileSize * 15, dx: tileSize, dy: 0, color: 'cyan', isScared: false, speed: 200, behavior: 'scatter', specialAbility: 'wall', difficulty: 'hard' },
+        { x: tileSize * 15, y: tileSize * 15, dx: tileSize, dy: 0, color: 'orange', isScared: false, speed: 200, behavior: 'random', specialAbility: 'speed', difficulty: 'easy' }
     ];
 }
 
@@ -61,10 +64,26 @@ function initializeMovingWalls() {
     ];
 }
 
+function initializeDestroyableWalls() {
+    destroyableWalls = [
+        { x: tileSize * 3, y: tileSize * 3, width: tileSize * 3, height: tileSize, isDestroyed: false },
+        { x: tileSize * 10, y: tileSize * 10, width: tileSize, height: tileSize * 3, isDestroyed: false }
+    ];
+}
+
+function initializePowerUps() {
+    powerUps = [
+        { x: tileSize * 8, y: tileSize * 8, type: 'speed', duration: 10 },
+        { x: tileSize * 12, y: tileSize * 12, type: 'invincibility', duration: 10 }
+    ];
+}
+
 function initializeLevel() {
     initializePellets();
     initializeGhosts();
     initializeMovingWalls();
+    initializeDestroyableWalls();
+    initializePowerUps();
     fruits = [{ x: tileSize * 7, y: tileSize * 7 }];
 }
 
@@ -121,6 +140,31 @@ function drawMovingWalls() {
     });
 }
 
+function drawDestroyableWalls() {
+    context.fillStyle = 'brown';
+    destroyableWalls.forEach(wall => {
+        if (!wall.isDestroyed) {
+            context.fillRect(wall.x, wall.y, wall.width, wall.height);
+        }
+    });
+}
+
+function drawPowerUps() {
+    powerUps.forEach(powerUp => {
+        switch (powerUp.type) {
+            case 'speed':
+                context.fillStyle = 'green';
+                break;
+            case 'invincibility':
+                context.fillStyle = 'purple';
+                break;
+        }
+        context.beginPath();
+        context.arc(powerUp.x + tileSize / 2, powerUp.y + tileSize / 2, 6, 0, 2 * Math.PI);
+        context.fill();
+    });
+}
+
 function drawUI() {
     context.fillStyle = 'white';
     context.font = '20px Arial';
@@ -130,6 +174,7 @@ function drawUI() {
     context.fillText('Multiplier: x' + multiplier, 10, 80);
     context.fillText('Best Score: ' + bestScore, canvas.width - 150, 20);
     context.fillText('Average Score: ' + avgScore.toFixed(2), canvas.width - 150, 40);
+    context.fillText('Difficulty: ' + ['Easy', 'Medium', 'Hard'][difficulty - 1], canvas.width - 150, 60);
     if (powerMode) {
         context.fillStyle = 'white';
         context.font = '16px Arial';
@@ -141,9 +186,9 @@ function drawUI() {
 function drawLeaderboard() {
     context.fillStyle = 'white';
     context.font = '16px Arial';
-    context.fillText('Leaderboard:', canvas.width - 150, 60);
+    context.fillText('Leaderboard:', canvas.width - 150, 80);
     leaderboard.slice(0, 5).forEach((entry, index) => {
-        context.fillText(`${index + 1}. ${entry.name}: ${entry.score}`, canvas.width - 150, 80 + index * 20);
+        context.fillText(`${index + 1}. ${entry.name}: ${entry.score}`, canvas.width - 150, 100 + index * 20);
     });
 }
 
@@ -163,54 +208,64 @@ function update() {
     if (pacMan.y >= canvas.height) pacMan.y = 0;
     if (pacMan.y < 0) pacMan.y = canvas.height - tileSize;
 
-    // Check for pellet collision
     pellets = pellets.filter(pellet => {
-        const eaten = !(pellet.x === pacMan.x && pellet.y === pacMan.y);
-        if (!eaten) {
+        if (pacMan.x < pellet.x + tileSize &&
+            pacMan.x + tileSize > pellet.x &&
+            pacMan.y < pellet.y + tileSize &&
+            pacMan.y + tileSize > pellet.y) {
             score += 10 * multiplier;
+            return false;
         }
-        return eaten;
+        return true;
     });
 
-    // Check for power pellet collision
     powerPellets = powerPellets.filter(pellet => {
-        const eaten = !(pellet.x === pacMan.x && pellet.y === pacMan.y);
-        if (!eaten) {
+        if (pacMan.x < pellet.x + tileSize &&
+            pacMan.x + tileSize > pellet.x &&
+            pacMan.y < pellet.y + tileSize &&
+            pacMan.y + tileSize > pellet.y) {
             powerMode = true;
-            powerModeTime = 100;
-            ghosts.forEach(ghost => ghost.isScared = true);
+            powerModeTime = 10;
             multiplier = 2;
+            return false;
         }
-        return eaten;
+        return true;
     });
 
-    // Check for fruit collision
     fruits = fruits.filter(fruit => {
-        const eaten = !(fruit.x === pacMan.x && fruit.y === pacMan.y);
-        if (!eaten) {
+        if (pacMan.x < fruit.x + tileSize &&
+            pacMan.x + tileSize > fruit.x &&
+            pacMan.y < fruit.y + tileSize &&
+            pacMan.y + tileSize > fruit.y) {
             score += 50 * multiplier;
+            return false;
         }
-        return eaten;
+        return true;
     });
 
-    if (powerMode) {
-        powerModeTime--;
-        if (powerModeTime <= 0) {
-            powerMode = false;
-            ghosts.forEach(ghost => ghost.isScared = false);
-            multiplier = 1;
+    powerUps.forEach(powerUp => {
+        if (pacMan.x < powerUp.x + tileSize &&
+            pacMan.x + tileSize > powerUp.x &&
+            pacMan.y < powerUp.y + tileSize &&
+            pacMan.y + tileSize > powerUp.y) {
+            switch (powerUp.type) {
+                case 'speed':
+                    pacMan.speed = 100;
+                    break;
+                case 'invincibility':
+                    powerMode = true;
+                    powerModeTime = 20;
+                    break;
+            }
+            powerUps = powerUps.filter(p => p !== powerUp);
         }
-    }
+    });
 
-    // Move ghosts with advanced AI and special abilities
     ghosts.forEach(ghost => {
-        if (ghost.specialAbility === 'teleport' && Math.random() < 0.01) {
-            ghost.x = tileSize * Math.floor(Math.random() * cols);
-            ghost.y = tileSize * Math.floor(Math.random() * rows);
-        }
-
-        if (ghost.specialAbility === 'speed') {
-            ghost.speed = Math.random() < 0.01 ? ghost.speed * 2 : ghost.speed;
+        if (powerMode) {
+            ghost.isScared = true;
+        } else {
+            ghost.isScared = false;
         }
 
         // Ghost AI behavior
@@ -231,7 +286,7 @@ function update() {
                 break;
         }
 
-        // Check for collision with walls
+        // Check for collision with moving walls
         movingWalls.forEach(wall => {
             if (ghost.x < wall.x + wall.width &&
                 ghost.x + tileSize > wall.x &&
@@ -262,16 +317,26 @@ function update() {
         }
     });
 
-    // Check for collision with moving walls
-    movingWalls.forEach(wall => {
+    // Check for collision with destroyable walls
+    destroyableWalls.forEach(wall => {
         if (pacMan.x < wall.x + wall.width &&
             pacMan.x + tileSize > wall.x &&
             pacMan.y < wall.y + wall.height &&
             pacMan.y + tileSize > wall.y) {
-            pacMan.x -= pacMan.dx;
-            pacMan.y -= pacMan.dy;
+            if (wall.isDestroyed) return;
+            wall.isDestroyed = true;
+            score += 100;
         }
     });
+
+    // Update power mode time
+    if (powerMode) {
+        powerModeTime -= 0.1;
+        if (powerModeTime <= 0) {
+            powerMode = false;
+            multiplier = 1;
+        }
+    }
 
     // Check for win condition
     if (pellets.length === 0 && powerPellets.length === 0) {
@@ -343,6 +408,8 @@ function gameTick() {
     drawPacMan();
     drawGhosts();
     drawMovingWalls();
+    drawDestroyableWalls();
+    drawPowerUps();
     drawUI();
 }
 
@@ -370,6 +437,10 @@ document.addEventListener('keydown', (e) => {
         } else {
             clearInterval(gameLoop);
         }
+    }
+    if (e.key === 'd') {
+        difficulty = (difficulty % 3) + 1;
+        alert(`Difficulty set to ${['Easy', 'Medium', 'Hard'][difficulty - 1]}`);
     }
 });
 
