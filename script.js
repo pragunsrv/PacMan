@@ -21,10 +21,10 @@ let score = 0;
 let level = 1;
 let powerMode = false;
 let powerModeTime = 0;
+let multiplier = 1;
 
 const ghostBaseSpeed = 200;
 
-// Initialize pellets and power pellets
 function initializePellets() {
     pellets = [];
     powerPellets = [];
@@ -40,10 +40,10 @@ function initializePellets() {
 }
 
 let ghosts = [
-    { x: tileSize * 10, y: tileSize * 10, dx: tileSize, dy: 0, color: 'red', isScared: false, speed: ghostBaseSpeed },
-    { x: tileSize * 15, y: tileSize * 10, dx: tileSize, dy: 0, color: 'pink', isScared: false, speed: ghostBaseSpeed },
-    { x: tileSize * 10, y: tileSize * 15, dx: tileSize, dy: 0, color: 'cyan', isScared: false, speed: ghostBaseSpeed },
-    { x: tileSize * 15, y: tileSize * 15, dx: tileSize, dy: 0, color: 'orange', isScared: false, speed: ghostBaseSpeed }
+    { x: tileSize * 10, y: tileSize * 10, dx: tileSize, dy: 0, color: 'red', isScared: false, speed: ghostBaseSpeed, behavior: 'random' },
+    { x: tileSize * 15, y: tileSize * 10, dx: tileSize, dy: 0, color: 'pink', isScared: false, speed: ghostBaseSpeed, behavior: 'chase' },
+    { x: tileSize * 10, y: tileSize * 15, dx: tileSize, dy: 0, color: 'cyan', isScared: false, speed: ghostBaseSpeed, behavior: 'scatter' },
+    { x: tileSize * 15, y: tileSize * 15, dx: tileSize, dy: 0, color: 'orange', isScared: false, speed: ghostBaseSpeed, behavior: 'random' }
 ];
 
 initializePellets();
@@ -110,7 +110,7 @@ function update() {
     pellets = pellets.filter(pellet => {
         const eaten = !(pellet.x === pacMan.x && pellet.y === pacMan.y);
         if (!eaten) {
-            score++;
+            score += 10 * multiplier;
         }
         return eaten;
     });
@@ -122,6 +122,7 @@ function update() {
             powerMode = true;
             powerModeTime = 100;
             ghosts.forEach(ghost => ghost.isScared = true);
+            multiplier = 2; // Double score during power mode
         }
         return eaten;
     });
@@ -130,7 +131,7 @@ function update() {
     fruits = fruits.filter(fruit => {
         const eaten = !(fruit.x === pacMan.x && fruit.y === pacMan.y);
         if (!eaten) {
-            score += 50;
+            score += 50 * multiplier;
         }
         return eaten;
     });
@@ -140,21 +141,34 @@ function update() {
         if (powerModeTime <= 0) {
             powerMode = false;
             ghosts.forEach(ghost => ghost.isScared = false);
+            multiplier = 1; // Reset multiplier after power mode
         }
     }
 
     // Move ghosts
     ghosts.forEach(ghost => {
-        if (Math.random() < 0.1) {
-            const directions = [
-                { dx: tileSize, dy: 0 },
-                { dx: -tileSize, dy: 0 },
-                { dx: 0, dy: tileSize },
-                { dx: 0, dy: -tileSize }
-            ];
-            const direction = directions[Math.floor(Math.random() * directions.length)];
-            ghost.dx = direction.dx;
-            ghost.dy = direction.dy;
+        if (ghost.behavior === 'random') {
+            if (Math.random() < 0.1) {
+                const directions = [
+                    { dx: tileSize, dy: 0 },
+                    { dx: -tileSize, dy: 0 },
+                    { dx: 0, dy: tileSize },
+                    { dx: 0, dy: -tileSize }
+                ];
+                const direction = directions[Math.floor(Math.random() * directions.length)];
+                ghost.dx = direction.dx;
+                ghost.dy = direction.dy;
+            }
+        } else if (ghost.behavior === 'chase') {
+            if (pacMan.x > ghost.x) ghost.dx = tileSize;
+            if (pacMan.x < ghost.x) ghost.dx = -tileSize;
+            if (pacMan.y > ghost.y) ghost.dy = tileSize;
+            if (pacMan.y < ghost.y) ghost.dy = -tileSize;
+        } else if (ghost.behavior === 'scatter') {
+            if (ghost.x < canvas.width / 2) ghost.dx = tileSize;
+            if (ghost.x >= canvas.width / 2) ghost.dx = -tileSize;
+            if (ghost.y < canvas.height / 2) ghost.dy = tileSize;
+            if (ghost.y >= canvas.height / 2) ghost.dy = -tileSize;
         }
 
         ghost.x += ghost.dx;
@@ -171,9 +185,9 @@ function update() {
                 ghost.x = tileSize * 10;
                 ghost.y = tileSize * 10;
                 ghost.isScared = false;
-                score += 10;
+                score += 10 * multiplier;
             } else {
-                resetGame();
+                gameOver();
             }
         }
     });
@@ -188,6 +202,7 @@ function drawScore() {
     context.font = '20px Arial';
     context.fillText('Score: ' + score, 10, 20);
     context.fillText('Level: ' + level, 10, 40);
+    context.fillText('Multiplier: x' + multiplier, 10, 60);
 }
 
 function resetGame() {
@@ -197,31 +212,44 @@ function resetGame() {
     pacMan.dy = 0;
     score = 0;
     level = 1;
-    initializePellets();
+    powerMode = false;
+    powerModeTime = 0;
+    multiplier = 1;
     ghosts.forEach(ghost => {
-        ghost.x = tileSize * 10;
-        ghost.y = tileSize * 10;
+        ghost.x = tileSize * (Math.random() * (cols - 2) + 1);
+        ghost.y = tileSize * (Math.random() * (rows - 2) + 1);
         ghost.isScared = false;
+        ghost.speed = ghostBaseSpeed;
     });
+    initializePellets();
+    fruits = [{ x: tileSize * 7, y: tileSize * 7 }];
 }
 
 function levelUp() {
     level++;
-    pacMan.speed -= 20;
-    ghosts.forEach(ghost => {
-        ghost.speed -= 20;
-    });
+    pacMan.speed = Math.max(100, pacMan.speed - 10);
+    ghosts.forEach(ghost => ghost.speed = Math.max(100, ghost.speed - 10));
     initializePellets();
-    spawnFruit();
+    fruits.push({ x: tileSize * Math.floor(Math.random() * cols), y: tileSize * Math.floor(Math.random() * rows) });
 }
 
-function spawnFruit() {
-    const fruitX = Math.floor(Math.random() * cols) * tileSize;
-    const fruitY = Math.floor(Math.random() * rows) * tileSize;
-    fruits.push({ x: fruitX, y: fruitY });
+function gameOver() {
+    clearInterval(gameLoop);
+    context.fillStyle = 'red';
+    context.font = '40px Arial';
+    context.fillText('Game Over', canvas.width / 2 - 100, canvas.height / 2 - 20);
+    context.font = '20px Arial';
+    context.fillText('Score: ' + score, canvas.width / 2 - 50, canvas.height / 2 + 20);
+    setTimeout(() => {
+        if (confirm('Game Over! Do you want to play again?')) {
+            resetGame();
+            gameLoop = setInterval(gameTick, pacMan.speed);
+        }
+    }, 1000);
 }
 
-function gameLoop() {
+function gameTick() {
+    update();
     clearCanvas();
     drawPellets();
     drawPowerPellets();
@@ -229,24 +257,26 @@ function gameLoop() {
     drawPacMan();
     drawGhosts();
     drawScore();
-    update();
 }
 
-document.addEventListener('keydown', (event) => {
-    const { key } = event;
-    if (key === 'ArrowUp' && pacMan.dy === 0) {
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowUp') {
         pacMan.dx = 0;
         pacMan.dy = -tileSize;
-    } else if (key === 'ArrowDown' && pacMan.dy === 0) {
+    }
+    if (e.key === 'ArrowDown') {
         pacMan.dx = 0;
         pacMan.dy = tileSize;
-    } else if (key === 'ArrowLeft' && pacMan.dx === 0) {
+    }
+    if (e.key === 'ArrowLeft') {
         pacMan.dx = -tileSize;
         pacMan.dy = 0;
-    } else if (key === 'ArrowRight' && pacMan.dx === 0) {
+    }
+    if (e.key === 'ArrowRight') {
         pacMan.dx = tileSize;
         pacMan.dy = 0;
     }
 });
 
-setInterval(gameLoop, pacMan.speed);
+resetGame();
+let gameLoop = setInterval(gameTick, pacMan.speed);
