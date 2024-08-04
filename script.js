@@ -18,6 +18,7 @@ let pellets = [];
 let powerPellets = [];
 let fruits = [];
 let ghosts = [];
+let movingWalls = [];
 let score = 0;
 let level = 1;
 let powerMode = false;
@@ -28,6 +29,7 @@ let gamePaused = false;
 let bestScore = 0;
 let avgScore = 0;
 let totalGames = 0;
+let leaderboard = [];
 
 function initializePellets() {
     pellets = [];
@@ -45,16 +47,24 @@ function initializePellets() {
 
 function initializeGhosts() {
     ghosts = [
-        { x: tileSize * 10, y: tileSize * 10, dx: tileSize, dy: 0, color: 'red', isScared: false, speed: 200, behavior: 'random' },
-        { x: tileSize * 15, y: tileSize * 10, dx: tileSize, dy: 0, color: 'pink', isScared: false, speed: 200, behavior: 'chase' },
-        { x: tileSize * 10, y: tileSize * 15, dx: tileSize, dy: 0, color: 'cyan', isScared: false, speed: 200, behavior: 'scatter' },
-        { x: tileSize * 15, y: tileSize * 15, dx: tileSize, dy: 0, color: 'orange', isScared: false, speed: 200, behavior: 'random' }
+        { x: tileSize * 10, y: tileSize * 10, dx: tileSize, dy: 0, color: 'red', isScared: false, speed: 200, behavior: 'random', specialAbility: 'teleport' },
+        { x: tileSize * 15, y: tileSize * 10, dx: tileSize, dy: 0, color: 'pink', isScared: false, speed: 200, behavior: 'chase', specialAbility: 'speed' },
+        { x: tileSize * 10, y: tileSize * 15, dx: tileSize, dy: 0, color: 'cyan', isScared: false, speed: 200, behavior: 'scatter', specialAbility: 'wall' },
+        { x: tileSize * 15, y: tileSize * 15, dx: tileSize, dy: 0, color: 'orange', isScared: false, speed: 200, behavior: 'random', specialAbility: 'speed' }
+    ];
+}
+
+function initializeMovingWalls() {
+    movingWalls = [
+        { x: tileSize * 7, y: tileSize * 7, width: tileSize * 2, height: tileSize, direction: 'horizontal', speed: 1 },
+        { x: tileSize * 10, y: tileSize * 10, width: tileSize, height: tileSize * 2, direction: 'vertical', speed: 1 }
     ];
 }
 
 function initializeLevel() {
     initializePellets();
     initializeGhosts();
+    initializeMovingWalls();
     fruits = [{ x: tileSize * 7, y: tileSize * 7 }];
 }
 
@@ -104,6 +114,13 @@ function drawGhosts() {
     });
 }
 
+function drawMovingWalls() {
+    context.fillStyle = 'grey';
+    movingWalls.forEach(wall => {
+        context.fillRect(wall.x, wall.y, wall.width, wall.height);
+    });
+}
+
 function drawUI() {
     context.fillStyle = 'white';
     context.font = '20px Arial';
@@ -118,6 +135,16 @@ function drawUI() {
         context.font = '16px Arial';
         context.fillText('Power Mode: ' + powerModeTime, 10, 100);
     }
+    drawLeaderboard();
+}
+
+function drawLeaderboard() {
+    context.fillStyle = 'white';
+    context.font = '16px Arial';
+    context.fillText('Leaderboard:', canvas.width - 150, 60);
+    leaderboard.slice(0, 5).forEach((entry, index) => {
+        context.fillText(`${index + 1}. ${entry.name}: ${entry.score}`, canvas.width - 150, 80 + index * 20);
+    });
 }
 
 function clearCanvas() {
@@ -175,35 +202,50 @@ function update() {
         }
     }
 
-    // Move ghosts with advanced AI
+    // Move ghosts with advanced AI and special abilities
     ghosts.forEach(ghost => {
-        if (ghost.behavior === 'random') {
-            if (Math.random() < 0.1) {
-                const directions = [
-                    { dx: tileSize, dy: 0 },
-                    { dx: -tileSize, dy: 0 },
-                    { dx: 0, dy: tileSize },
-                    { dx: 0, dy: -tileSize }
-                ];
-                const direction = directions[Math.floor(Math.random() * directions.length)];
-                ghost.dx = direction.dx;
-                ghost.dy = direction.dy;
-            }
-        } else if (ghost.behavior === 'chase') {
-            if (pacMan.x > ghost.x) ghost.dx = tileSize;
-            if (pacMan.x < ghost.x) ghost.dx = -tileSize;
-            if (pacMan.y > ghost.y) ghost.dy = tileSize;
-            if (pacMan.y < ghost.y) ghost.dy = -tileSize;
-        } else if (ghost.behavior === 'scatter') {
-            if (ghost.x < canvas.width / 2) ghost.dx = tileSize;
-            if (ghost.x >= canvas.width / 2) ghost.dx = -tileSize;
-            if (ghost.y < canvas.height / 2) ghost.dy = tileSize;
-            if (ghost.y >= canvas.height / 2) ghost.dy = -tileSize;
+        if (ghost.specialAbility === 'teleport' && Math.random() < 0.01) {
+            ghost.x = tileSize * Math.floor(Math.random() * cols);
+            ghost.y = tileSize * Math.floor(Math.random() * rows);
         }
 
-        ghost.x += ghost.dx;
-        ghost.y += ghost.dy;
+        if (ghost.specialAbility === 'speed') {
+            ghost.speed = Math.random() < 0.01 ? ghost.speed * 2 : ghost.speed;
+        }
 
+        // Ghost AI behavior
+        switch (ghost.behavior) {
+            case 'random':
+                ghost.x += (Math.random() < 0.5 ? ghost.speed : -ghost.speed);
+                ghost.y += (Math.random() < 0.5 ? ghost.speed : -ghost.speed);
+                break;
+            case 'chase':
+                if (pacMan.x > ghost.x) ghost.x += ghost.speed;
+                if (pacMan.x < ghost.x) ghost.x -= ghost.speed;
+                if (pacMan.y > ghost.y) ghost.y += ghost.speed;
+                if (pacMan.y < ghost.y) ghost.y -= ghost.speed;
+                break;
+            case 'scatter':
+                ghost.x += Math.sin(ghost.x / 10) * ghost.speed;
+                ghost.y += Math.cos(ghost.y / 10) * ghost.speed;
+                break;
+        }
+
+        // Check for collision with walls
+        movingWalls.forEach(wall => {
+            if (ghost.x < wall.x + wall.width &&
+                ghost.x + tileSize > wall.x &&
+                ghost.y < wall.y + wall.height &&
+                ghost.y + tileSize > wall.y) {
+                if (wall.direction === 'horizontal') {
+                    ghost.x -= ghost.speed;
+                } else if (wall.direction === 'vertical') {
+                    ghost.y -= ghost.speed;
+                }
+            }
+        });
+
+        // Ghost wrap-around
         if (ghost.x >= canvas.width) ghost.x = 0;
         if (ghost.x < 0) ghost.x = canvas.width - tileSize;
         if (ghost.y >= canvas.height) ghost.y = 0;
@@ -217,6 +259,17 @@ function update() {
             } else {
                 loseLife();
             }
+        }
+    });
+
+    // Check for collision with moving walls
+    movingWalls.forEach(wall => {
+        if (pacMan.x < wall.x + wall.width &&
+            pacMan.x + tileSize > wall.x &&
+            pacMan.y < wall.y + wall.height &&
+            pacMan.y + tileSize > wall.y) {
+            pacMan.x -= pacMan.dx;
+            pacMan.y -= pacMan.dy;
         }
     });
 
@@ -268,6 +321,11 @@ function gameOver() {
     totalGames++;
     bestScore = Math.max(bestScore, score);
 
+    // Update leaderboard
+    let playerName = prompt('Enter your name for the leaderboard:');
+    leaderboard.push({ name: playerName, score: score });
+    leaderboard.sort((a, b) => b.score - a.score);
+
     setTimeout(() => {
         if (confirm('Game Over! Do you want to play again?')) {
             resetGame();
@@ -284,6 +342,7 @@ function gameTick() {
     drawFruits();
     drawPacMan();
     drawGhosts();
+    drawMovingWalls();
     drawUI();
 }
 
