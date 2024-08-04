@@ -1,11 +1,11 @@
 body {
     margin: 0;
-    overflow: hidden;
-    background: black;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: black;
 }
 
 canvas {
-    display: block;
-    margin: auto;
-    background: #222;
+    border: 2px solid white;
 }
