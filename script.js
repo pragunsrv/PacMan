@@ -10,32 +10,42 @@ let pacMan = {
     y: tileSize * 1,
     dx: tileSize,
     dy: 0,
-    size: tileSize - 2
+    size: tileSize - 2,
+    speed: 200
 };
 
 let pellets = [];
 let powerPellets = [];
 let score = 0;
+let level = 1;
 let powerMode = false;
 let powerModeTime = 0;
 
+const ghostBaseSpeed = 200;
+
 // Initialize pellets and power pellets
-for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-        if ((row === 5 && col === 5) || (row === 5 && col === 15) || (row === 15 && col === 5) || (row === 15 && col === 15)) {
-            powerPellets.push({ x: col * tileSize, y: row * tileSize });
-        } else {
-            pellets.push({ x: col * tileSize, y: row * tileSize });
+function initializePellets() {
+    pellets = [];
+    powerPellets = [];
+    for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+            if ((row === 5 && col === 5) || (row === 5 && col === 15) || (row === 15 && col === 5) || (row === 15 && col === 15)) {
+                powerPellets.push({ x: col * tileSize, y: row * tileSize });
+            } else {
+                pellets.push({ x: col * tileSize, y: row * tileSize });
+            }
         }
     }
 }
 
 let ghosts = [
-    { x: tileSize * 10, y: tileSize * 10, dx: tileSize, dy: 0, color: 'red', isScared: false },
-    { x: tileSize * 15, y: tileSize * 10, dx: tileSize, dy: 0, color: 'pink', isScared: false },
-    { x: tileSize * 10, y: tileSize * 15, dx: tileSize, dy: 0, color: 'cyan', isScared: false },
-    { x: tileSize * 15, y: tileSize * 15, dx: tileSize, dy: 0, color: 'orange', isScared: false }
+    { x: tileSize * 10, y: tileSize * 10, dx: tileSize, dy: 0, color: 'red', isScared: false, speed: ghostBaseSpeed },
+    { x: tileSize * 15, y: tileSize * 10, dx: tileSize, dy: 0, color: 'pink', isScared: false, speed: ghostBaseSpeed },
+    { x: tileSize * 10, y: tileSize * 15, dx: tileSize, dy: 0, color: 'cyan', isScared: false, speed: ghostBaseSpeed },
+    { x: tileSize * 15, y: tileSize * 15, dx: tileSize, dy: 0, color: 'orange', isScared: false, speed: ghostBaseSpeed }
 ];
+
+initializePellets();
 
 function drawPacMan() {
     context.fillStyle = 'yellow';
@@ -116,10 +126,6 @@ function update() {
 
     // Move ghosts
     ghosts.forEach(ghost => {
-        ghost.x += ghost.dx;
-        ghost.y += ghost.dy;
-
-        // Randomly change direction
         if (Math.random() < 0.1) {
             const directions = [
                 { dx: tileSize, dy: 0 },
@@ -131,6 +137,9 @@ function update() {
             ghost.dx = direction.dx;
             ghost.dy = direction.dy;
         }
+
+        ghost.x += ghost.dx;
+        ghost.y += ghost.dy;
 
         if (ghost.x >= canvas.width) ghost.x = 0;
         if (ghost.x < 0) ghost.x = canvas.width - tileSize;
@@ -149,12 +158,17 @@ function update() {
             }
         }
     });
+
+    if (pellets.length === 0 && powerPellets.length === 0) {
+        levelUp();
+    }
 }
 
 function drawScore() {
     context.fillStyle = 'white';
     context.font = '20px Arial';
     context.fillText('Score: ' + score, 10, 20);
+    context.fillText('Level: ' + level, 10, 40);
 }
 
 function resetGame() {
@@ -163,22 +177,22 @@ function resetGame() {
     pacMan.dx = tileSize;
     pacMan.dy = 0;
     score = 0;
-    pellets = [];
-    powerPellets = [];
-    for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < cols; col++) {
-            if ((row === 5 && col === 5) || (row === 5 && col === 15) || (row === 15 && col === 5) || (row === 15 && col === 15)) {
-                powerPellets.push({ x: col * tileSize, y: row * tileSize });
-            } else {
-                pellets.push({ x: col * tileSize, y: row * tileSize });
-            }
-        }
-    }
+    level = 1;
+    initializePellets();
     ghosts.forEach(ghost => {
         ghost.x = tileSize * 10;
         ghost.y = tileSize * 10;
         ghost.isScared = false;
     });
+}
+
+function levelUp() {
+    level++;
+    pacMan.speed -= 20;
+    ghosts.forEach(ghost => {
+        ghost.speed -= 20;
+    });
+    initializePellets();
 }
 
 function gameLoop() {
@@ -208,4 +222,4 @@ document.addEventListener('keydown', (event) => {
     }
 });
 
-setInterval(gameLoop, 200);
+setInterval(gameLoop, pacMan.speed);
