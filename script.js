@@ -23,6 +23,13 @@ for (let row = 0; row < rows; row++) {
     }
 }
 
+let ghosts = [
+    { x: tileSize * 10, y: tileSize * 10, dx: tileSize, dy: 0, color: 'red' },
+    { x: tileSize * 15, y: tileSize * 10, dx: tileSize, dy: 0, color: 'pink' },
+    { x: tileSize * 10, y: tileSize * 15, dx: tileSize, dy: 0, color: 'cyan' },
+    { x: tileSize * 15, y: tileSize * 15, dx: tileSize, dy: 0, color: 'orange' }
+];
+
 function drawPacMan() {
     context.fillStyle = 'yellow';
     context.beginPath();
@@ -36,6 +43,15 @@ function drawPellets() {
     pellets.forEach(pellet => {
         context.beginPath();
         context.arc(pellet.x + tileSize / 2, pellet.y + tileSize / 2, 3, 0, 2 * Math.PI);
+        context.fill();
+    });
+}
+
+function drawGhosts() {
+    ghosts.forEach(ghost => {
+        context.fillStyle = ghost.color;
+        context.beginPath();
+        context.arc(ghost.x + tileSize / 2, ghost.y + tileSize / 2, pacMan.size / 2, 0, 2 * Math.PI);
         context.fill();
     });
 }
@@ -62,6 +78,7 @@ function update() {
         }
         return eaten;
     });
+
 }
 
 function drawScore() {
@@ -70,10 +87,25 @@ function drawScore() {
     context.fillText('Score: ' + score, 10, 20);
 }
 
+function resetGame() {
+    pacMan.x = tileSize * 1;
+    pacMan.y = tileSize * 1;
+    pacMan.dx = tileSize;
+    pacMan.dy = 0;
+    score = 0;
+    pellets = [];
+    for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+            pellets.push({ x: col * tileSize, y: row * tileSize });
+        }
+    }
+}
+
 function gameLoop() {
     clearCanvas();
     drawPellets();
     drawPacMan();
+    drawGhosts();
     drawScore();
     update();
 }
