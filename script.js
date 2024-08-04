@@ -25,6 +25,9 @@ let powerModeTime = 0;
 let multiplier = 1;
 let lives = 3;
 let gamePaused = false;
+let bestScore = 0;
+let avgScore = 0;
+let totalGames = 0;
 
 function initializePellets() {
     pellets = [];
@@ -49,8 +52,13 @@ function initializeGhosts() {
     ];
 }
 
-initializePellets();
-initializeGhosts();
+function initializeLevel() {
+    initializePellets();
+    initializeGhosts();
+    fruits = [{ x: tileSize * 7, y: tileSize * 7 }];
+}
+
+initializeLevel();
 
 function drawPacMan() {
     context.fillStyle = 'yellow';
@@ -103,6 +111,8 @@ function drawUI() {
     context.fillText('Level: ' + level, 10, 40);
     context.fillText('Lives: ' + lives, 10, 60);
     context.fillText('Multiplier: x' + multiplier, 10, 80);
+    context.fillText('Best Score: ' + bestScore, canvas.width - 150, 20);
+    context.fillText('Average Score: ' + avgScore.toFixed(2), canvas.width - 150, 40);
     if (powerMode) {
         context.fillStyle = 'white';
         context.font = '16px Arial';
@@ -165,7 +175,7 @@ function update() {
         }
     }
 
-    // Move ghosts
+    // Move ghosts with advanced AI
     ghosts.forEach(ghost => {
         if (ghost.behavior === 'random') {
             if (Math.random() < 0.1) {
@@ -199,13 +209,11 @@ function update() {
         if (ghost.y >= canvas.height) ghost.y = 0;
         if (ghost.y < 0) ghost.y = canvas.height - tileSize;
 
-        // Check for collision with Pac-Man
-        if (ghost.x === pacMan.x && ghost.y === pacMan.y) {
-            if (ghost.isScared) {
-                ghost.x = tileSize * 10;
-                ghost.y = tileSize * 10;
-                ghost.isScared = false;
-                score += 10 * multiplier;
+        // Check for collision with ghosts
+        if (pacMan.x === ghost.x && pacMan.y === ghost.y) {
+            if (powerMode) {
+                ghosts = ghosts.filter(g => g !== ghost);
+                score += 100 * multiplier;
             } else {
                 loseLife();
             }
@@ -235,16 +243,14 @@ function resetGame() {
     powerMode = false;
     powerModeTime = 0;
     multiplier = 1;
-    initializePellets();
-    initializeGhosts();
-    fruits = [{ x: tileSize * 7, y: tileSize * 7 }];
+    initializeLevel();
 }
 
 function levelUp() {
     level++;
     pacMan.speed = Math.max(100, pacMan.speed - 10);
     ghosts.forEach(ghost => ghost.speed = Math.max(100, ghost.speed - 10));
-    initializePellets();
+    initializeLevel();
     fruits.push({ x: tileSize * Math.floor(Math.random() * cols), y: tileSize * Math.floor(Math.random() * rows) });
 }
 
@@ -256,6 +262,12 @@ function gameOver() {
     context.font = '20px Arial';
     context.fillText('Score: ' + score, canvas.width / 2 - 50, canvas.height / 2 + 20);
     context.fillText('Lives: ' + lives, canvas.width / 2 - 50, canvas.height / 2 + 50);
+
+    // Update game statistics
+    avgScore = (avgScore * totalGames + score) / (totalGames + 1);
+    totalGames++;
+    bestScore = Math.max(bestScore, score);
+
     setTimeout(() => {
         if (confirm('Game Over! Do you want to play again?')) {
             resetGame();
